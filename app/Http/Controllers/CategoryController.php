@@ -10,6 +10,7 @@ class CategoryController extends Controller
 {
     public function index()
     {
+        return response()->json(Category::with('subcategories')->get(), 200);
         $categories = Category::all();
 
         if ($categories->isEmpty()) {
@@ -59,6 +60,7 @@ class CategoryController extends Controller
 
     public function show(Category $category)
     {
+        return response()->json($category->load('subcategories'), 200);
         return response()->json([
             'success' => true,
             'message' => 'Category fetched successfully',
