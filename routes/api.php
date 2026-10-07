@@ -12,7 +12,6 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\DeliverySlotController;
-use App\Http\Controllers\SubCategoryController;
 use App\Http\Middleware\IsAdmin;
 
 Route::prefix('v1')->group(function () {
