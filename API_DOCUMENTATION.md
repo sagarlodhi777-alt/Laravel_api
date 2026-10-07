@@ -35,8 +35,7 @@ Guest cart operations can pass a header: `X-Session-ID: <uuid>`
       "email": "michael@example.com",
       "phone": "(512) 555-0142",
       "password": "password123",
-      "password_confirmation": "password123",
-      "role": "user"
+      "password_confirmation": "password123"
   }
   ```
 
