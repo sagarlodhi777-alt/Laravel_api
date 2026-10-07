@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class SubCategory extends Model
 {
-    protected $fillable = ['category_id', 'name', 'slug', 'description'];
+    protected $table = 'subcategories';
+
+    protected $fillable = ['category_id', 'name', 'slug', 'description', 'image'];
 
     public function category()
     {

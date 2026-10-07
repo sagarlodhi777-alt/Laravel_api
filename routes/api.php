@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\SubcategoryController;
+use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\DeliveryController;
@@ -27,11 +27,6 @@ Route::prefix('v1')->group(function () {
     // Public Shop Browsing Routes
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/categories/{category}', [CategoryController::class, 'show']);
-    Route::get('/categories/{category}/subcategories', [SubcategoryController::class, 'getByCategory']);
-
-    Route::get('/subcategories', [SubcategoryController::class, 'index']);
-    Route::get('/subcategories/{subcategory}', [SubcategoryController::class, 'show']);
-
     Route::get('/subcategories', [SubCategoryController::class, 'index']);
     Route::get('/subcategories/{subCategory}', [SubCategoryController::class, 'show']);
     Route::get('/products', [ProductController::class, 'index']);
@@ -71,15 +66,11 @@ Route::prefix('v1')->group(function () {
             Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
             // Admin Subcategory Management
-            Route::post('/subcategories', [SubcategoryController::class, 'store']);
-            Route::put('/subcategories/{subcategory}', [SubcategoryController::class, 'update']);
-            Route::delete('/subcategories/{subcategory}', [SubcategoryController::class, 'destroy']);
-
-            // Admin Product Management
             Route::post('/subcategories', [SubCategoryController::class, 'store']);
             Route::put('/subcategories/{subCategory}', [SubCategoryController::class, 'update']);
             Route::delete('/subcategories/{subCategory}', [SubCategoryController::class, 'destroy']);
 
+            // Admin Product Management
             Route::post('/products', [ProductController::class, 'store']);
             Route::put('/products/{product}', [ProductController::class, 'update']);
             Route::delete('/products/{product}', [ProductController::class, 'destroy']);

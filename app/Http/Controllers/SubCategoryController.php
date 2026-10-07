@@ -22,8 +22,9 @@ class SubCategoryController extends Controller
             $validated = $request->validate([
                 'category_id' => 'required|exists:categories,id',
                 'name' => 'required|string|max:255',
-                'slug' => 'nullable|string|max:255|unique:sub_categories,slug',
-                'description' => 'nullable|string'
+                'slug' => 'nullable|string|max:255|unique:subcategories,slug',
+                'description' => 'nullable|string',
+                'image' => 'nullable|string'
             ]);
 
             $validated['slug'] = $validated['slug'] ?? Str::slug($validated['name']);
@@ -36,7 +37,7 @@ class SubCategoryController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json(['message' => 'SubCategory creation failed'], 500);
+            return response()->json(['message' => 'SubCategory creation failed: ' . $e->getMessage()], 500);
         }
     }
 
@@ -51,8 +52,9 @@ class SubCategoryController extends Controller
             $validated = $request->validate([
                 'category_id' => 'sometimes|exists:categories,id',
                 'name' => 'sometimes|string|max:255',
-                'slug' => 'sometimes|string|max:255|unique:sub_categories,slug,' . $subCategory->id,
-                'description' => 'nullable|string'
+                'slug' => 'sometimes|string|max:255|unique:subcategories,slug,' . $subCategory->id,
+                'description' => 'nullable|string',
+                'image' => 'nullable|string'
             ]);
 
             if (isset($validated['name']) && empty($validated['slug'] ?? '')) {

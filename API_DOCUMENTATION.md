@@ -1,46 +1,63 @@
 # Olivia Supermarket — REST API Documentation
 
-Base URL: `http://127.0.0.1:8000/api/v1`
+**Base URL:** `http://127.0.0.1:8000/api/v1`
 
 ---
 
-## 🛒 Store Overview & Frontend Integration
-Designed to power the **Olivia Super Market** web and mobile storefronts (Cart: `/cart` & Checkout: `/checkout`):
-* **Cart Management**: Real-time quantity adjustment, stock checks, $35 free delivery progress meter, tax calculation, and guest session sync.
-* **Multi-Step Checkout**:
-  1. **Delivery Address**: Full name, street address, city/state/zip, phone, and rider delivery note.
-  2. **Delivery Time Slot Selection**: ASAP (~45 min fastest), scheduled time windows (e.g. `6:00 – 7:00 pm Today`, `Tomorrow morning`).
-  3. **Payment Options**: Card (Visa/Mastercard/Amex), Cash on Delivery, Apple Pay, Google Pay, EBT SNAP.
-* **Dispatch & Live Delivery Tracking**: Tracking number generation, courier details, live GPS coordinates, and drop-off proof photos.
+## 🛒 Overview & Key Features
+This API powers the **Olivia Supermarket** web and mobile applications (Catalog, Cart, Checkout, Order Tracking, and Admin Portal):
+- **Cart Management**: Real-time stock checks, guest cart sessions via `X-Session-ID`, automatic guest-to-user cart merging upon login, $35 free delivery progress calculation, taxes, and coupon discounts (`FRESH10`).
+- **Multi-Step Checkout**: Delivery Address, Delivery Time Slot Selection (`asap`, `today_18_19`, etc.), Payment method selection (`credit_card`, `cash_on_delivery`, `apple_pay`, `google_pay`, `ebt_snap`), and automatic stock decrement.
+- **Dispatch & Live Delivery Tracking**: Automatic tracking number generation (`TRK-US-...`), real-time driver assignment, GPS coordinate updates, delivery proof photos, and public/authenticated live tracking.
+- **Admin Management**: Full CRUD for Categories, Subcategories, Products, Order status workflows, and Delivery dispatch operations.
 
 ---
 
-## Authentication
+## 🔐 Authentication & Headers
 
-All authenticated endpoints require a Bearer token in the `Authorization` header:
-`Authorization: Bearer <your_token_here>`
+All authenticated routes require a Sanctum Bearer Token:
+```http
+Authorization: Bearer <your_access_token>
+```
 
-Guest cart operations can pass a header: `X-Session-ID: <uuid>`
+Guest shoppers can interact with Cart endpoints by providing a Session ID:
+```http
+X-Session-ID: <uuid_or_custom_guest_id>
+```
 
 ---
 
-## 1. Authentication Endpoints (Public)
+## 1. Authentication Endpoints
 
-### Register (Customer or Admin)
-- **POST** `/auth/register`
+### Register
+- **Endpoint:** `POST /api/v1/auth/register`
 - **Request Body:**
   ```json
   {
       "name": "Michael O.",
       "email": "michael@example.com",
-      "phone": "(512) 555-0142",
+      "phone": "+15125550142",
       "password": "password123",
       "password_confirmation": "password123"
   }
   ```
+- **Response (201 Created):**
+  ```json
+  {
+      "message": "User registered successfully",
+      "user": {
+          "id": 1,
+          "name": "Michael O.",
+          "email": "michael@example.com",
+          "phone": "+15125550142",
+          "role": "user"
+      },
+      "token": "1|sanctum_token_string..."
+  }
+  ```
 
 ### Login
-- **POST** `/auth/login`
+- **Endpoint:** `POST /api/v1/auth/login`
 - **Request Body:**
   ```json
   {
@@ -48,128 +65,137 @@ Guest cart operations can pass a header: `X-Session-ID: <uuid>`
       "password": "password123"
   }
   ```
+- **Response (200 OK):**
+  ```json
+  {
+      "message": "Login successful",
+      "user": {
+          "id": 1,
+          "name": "Michael O.",
+          "email": "michael@example.com",
+          "role": "user"
+      },
+      "token": "2|sanctum_token_string..."
+  }
+  ```
+
+### Social Login (Google / Facebook)
+- **Endpoint:** `POST /api/v1/auth/social-login`
+- **Request Body:**
+  ```json
+  {
+      "provider": "google",
+      "token": "oauth_token_from_provider"
+  }
+  ```
+
+### Forgot Password
+- **Endpoint:** `POST /api/v1/auth/forgot-password`
+- **Request Body:**
+  ```json
+  {
+      "email": "michael@example.com"
+  }
+  ```
+
+### Reset Password
+- **Endpoint:** `POST /api/v1/auth/reset-password`
+- **Request Body:**
+  ```json
+  {
+      "token": "reset_token_received_in_email",
+      "email": "michael@example.com",
+      "password": "newpassword123",
+      "password_confirmation": "newpassword123"
+  }
+  ```
 
 ### Logout (Requires Auth)
-- **POST** `/auth/logout`
+- **Endpoint:** `POST /api/v1/auth/logout`
+- **Headers:** `Authorization: Bearer <token>`
+- **Response (200 OK):**
+  ```json
+  {
+      "message": "Logged out successfully"
+  }
+  ```
 
 ---
 
 ## 2. Storefront Catalog Browsing (Public)
 
-### Departments & Categories
-* **GET** `/categories` (Returns departments and nested subcategories)
-* **GET** `/categories/{id}`
-* **GET** `/categories/{category_id}/subcategories`
+### Categories
+- **List Categories:** `GET /api/v1/categories` (Includes nested subcategories)
+- **Single Category:** `GET /api/v1/categories/{category_id}`
 
-### Subcategories / Aisles
-* **GET** `/subcategories` *(Optional Query: `?category_id=1`)*
-* **GET** `/subcategories/{id}` (Returns subcategory with associated products)
+### Subcategories
+- **List Subcategories:** `GET /api/v1/subcategories` (Includes parent category)
+- **Single Subcategory:** `GET /api/v1/subcategories/{subcategory_id}`
 
-### Product Catalog
-* **GET** `/products`
-  * **Query Filters:** `?search=apples&subcategory_id=1&is_organic=true&min_price=2&max_price=15&sort_by=price_asc&per_page=20`
-* **GET** `/products/{id}`
+### Products
+- **List Products:** `GET /api/v1/products`
+  - **Supported Query Filters:**
+    - `search=apples` (Searches name, brand, SKU, UPC, slug, description)
+    - `category_id=1`
+    - `subcategory_id=2`
+    - `brand=Chobani`
+    - `tag=Organic`
+    - `is_organic=1` (Boolean filter)
+    - `is_gluten_free=1`
+    - `is_perishable=1`
+    - `local=1`
+    - `min_price=1.99`
+    - `max_price=10.00`
+    - `status=active` (or `inactive`, `out_of_stock`)
+    - `sort_by=price_asc` (`price_desc`, `name_asc`, `name_desc`, `latest`)
+    - `per_page=20` (Pagination limit)
+    - `all=true` (Returns full unpaginated list)
+- **Single Product:** `GET /api/v1/products/{product_id}`
 
 ---
 
-## 3. Cart APIs (`/cart`)
+## 3. Cart APIs (Public & Authenticated)
 
-Supports both authenticated users (via Bearer token) and guest shoppers (via `X-Session-ID` header or `session_id` query parameter). When a guest user logs in, guest cart items are automatically merged into their account cart.
+Works for authenticated users (via Bearer token) and guest shoppers (via `X-Session-ID` header or `session_id` param).
 
-### Get Active Cart & Calculated Summary
-* **GET** `/cart`
-* **Headers:** `Authorization: Bearer <token>` OR `X-Session-ID: 7a8f9c12-...`
-* **Response (200 OK):**
-### Social Login / Register (Google / Facebook)
-- **Endpoint:** `/auth/social-login`
-- **Method:** `POST`
-- **Description:** Send the `access_token` you receive from Google or Facebook OAuth on the client side. The API will verify it and log the user in, or create a new user account if one doesn't exist.
-- **Request Body:**
-  ```json
-  {
-      "provider": "google", // or "facebook"
-      "token": "your_access_token_from_google_or_facebook"
-  }
-  ```
-
-### Forgot Password
-- **Endpoint:** `/auth/forgot-password`
-- **Method:** `POST`
-- **Request Body:**
+### Get Active Cart & Summary
+- **Endpoint:** `GET /api/v1/cart`
+- **Response (200 OK):**
   ```json
   {
       "session_id": "7a8f9c12-3456-4789-abcd-1234567890ef",
       "cart": {
-          "items_count": 5,
+          "items_count": 3,
           "items": [
               {
                   "id": 101,
                   "product_id": 1,
-                  "name": "Fuji Apples",
-                  "brand": "Local Orchards",
-                  "unit_size": "1 kg pack",
-                  "image": "https://olivia-ruby.vercel.app/images/apples.png",
-                  "unit_price": "3.49",
+                  "name": "Organic Honeycrisp Apples",
+                  "brand": "Oliva Farms",
+                  "unit_size": "2 lbs bag",
+                  "image": "https://...",
+                  "unit_price": "3.99",
                   "quantity": 2,
-                  "line_total": "6.98",
+                  "line_total": "7.98",
                   "in_stock": true,
-                  "available_stock": 45
-              },
-              {
-                  "id": 102,
-                  "product_id": 2,
-                  "name": "Roma Tomatoes",
-                  "brand": "Fresh Farms",
-                  "unit_size": "500 g pack",
-                  "image": "https://olivia-ruby.vercel.app/images/tomatoes.png",
-                  "unit_price": "2.10",
-                  "quantity": 1,
-                  "line_total": "2.10",
-                  "in_stock": true,
-                  "available_stock": 30
-              },
-              {
-                  "id": 103,
-                  "product_id": 3,
-                  "name": "Whole Milk",
-                  "brand": "Horizon Organic",
-                  "unit_size": "1 gallon",
-                  "image": "https://olivia-ruby.vercel.app/images/milk.png",
-                  "unit_price": "3.89",
-                  "quantity": 1,
-                  "line_total": "3.89",
-                  "in_stock": true,
-                  "available_stock": 20
-              },
-              {
-                  "id": 104,
-                  "product_id": 4,
-                  "name": "Sourdough Loaf",
-                  "brand": "Artisan Bakery",
-                  "unit_size": "each",
-                  "image": "https://olivia-ruby.vercel.app/images/bread.png",
-                  "unit_price": "4.49",
-                  "quantity": 1,
-                  "line_total": "4.49",
-                  "in_stock": true,
-                  "available_stock": 15
+                  "available_stock": 48
               }
           ],
-          "subtotal": "17.46",
+          "subtotal": "7.98",
           "delivery_fee": "2.99",
-          "estimated_tax": "1.10",
-          "total": "21.55",
+          "estimated_tax": "0.50",
+          "total": "11.47",
           "free_delivery_threshold": "35.00",
-          "amount_needed_for_free_delivery": "17.54",
-          "free_delivery_progress_percentage": 49.9,
+          "amount_needed_for_free_delivery": "27.02",
+          "free_delivery_progress_percentage": 22.8,
           "is_eligible_for_free_delivery": false
       }
   }
   ```
 
 ### Add Item to Cart
-* **POST** `/cart/items`
-* **Body:**
+- **Endpoint:** `POST /api/v1/cart/items`
+- **Request Body:**
   ```json
   {
       "product_id": 1,
@@ -178,34 +204,24 @@ Supports both authenticated users (via Bearer token) and guest shoppers (via `X-
   ```
 
 ### Update Item Quantity
-* **PUT** `/cart/items/{cart_item_id}`
-* **Body:**
+- **Endpoint:** `PUT /api/v1/cart/items/{cart_item_id}`
+- **Request Body:**
   ```json
   {
-      "quantity": 3 // Set to 0 to remove item
+      "quantity": 3
   }
   ```
+  *(Note: Setting `quantity: 0` removes the item)*
 
-### Remove Single Item
-* **DELETE** `/cart/items/{cart_item_id}`
+### Remove Item from Cart
+- **Endpoint:** `DELETE /api/v1/cart/items/{cart_item_id}`
 
-### Clear Cart
-* **DELETE** `/cart/clear`
-### Get All SubCategories
-- **Endpoint:** `/subcategories`
-- **Method:** `GET`
+### Clear Entire Cart
+- **Endpoint:** `DELETE /api/v1/cart/clear`
 
-### Get Single SubCategory
-- **Endpoint:** `/subcategories/{id}`
-- **Method:** `GET`
-
-### Get All Products
-- **Endpoint:** `/products`
-- **Method:** `GET`
-
-### Preview Checkout Breakdown
-* **POST** `/cart/preview`
-* **Body (Optional Overrides):**
+### Preview Checkout Breakdown (Dynamic Calculations)
+- **Endpoint:** `POST /api/v1/cart/preview`
+- **Request Body (Optional overrides / coupon test):**
   ```json
   {
       "order_type": "delivery",
@@ -213,14 +229,28 @@ Supports both authenticated users (via Bearer token) and guest shoppers (via `X-
       "coupon_code": "FRESH10"
   }
   ```
+- **Response (200 OK):**
+  ```json
+  {
+      "items": [...],
+      "subtotal": "38.00",
+      "delivery_fee": "0.00",
+      "estimated_tax": "2.39",
+      "tip_amount": "3.00",
+      "discount_amount": "3.80",
+      "total": "39.59",
+      "is_free_delivery": true,
+      "amount_needed_for_free_delivery": "0.00"
+  }
+  ```
 
 ---
 
-## 4. Delivery Slots & Options
+## 4. Delivery Slots & Public Tracking
 
-### Get Available Delivery Windows
-* **GET** `/delivery-slots`
-* **Response (200 OK):**
+### Available Delivery Windows
+- **Endpoint:** `GET /api/v1/delivery-slots`
+- **Response (200 OK):**
   ```json
   {
       "slots": [
@@ -239,157 +269,201 @@ Supports both authenticated users (via Bearer token) and guest shoppers (via `X-
               "badge": null,
               "is_default": false,
               "available": true
-          },
-          {
-              "id": "today_19_20",
-              "title": "7:00 – 8:00 pm",
-              "subtitle": "Today",
-              "badge": null,
-              "is_default": false,
-              "available": true
-          },
-          {
-              "id": "tomorrow_09_10",
-              "title": "9:00 – 10:00 am",
-              "subtitle": "Tomorrow",
-              "badge": null,
-              "is_default": false,
-              "available": true
           }
       ]
   }
   ```
 
+### Public Order Tracking (No Login Required)
+- **Endpoint:** `GET /api/v1/tracking/{tracking_number}`
+- **Response (200 OK):**
+  ```json
+  {
+      "tracking_number": "TRK-US-A1B2C3D4",
+      "delivery_status": "in_transit",
+      "driver_name": "Marcus Vance",
+      "driver_phone": "+14155550199",
+      "vehicle_info": "Silver Toyota Prius (CA 7XYZ89)",
+      "current_location": {
+          "latitude": 37.774929,
+          "longitude": -122.419416
+      },
+      "estimated_delivery_time": "2026-10-07T14:30:00.000000Z",
+      "order_summary": {
+          "order_number": "US-ORD-20261007-AB12CD",
+          "items_count": 4,
+          "shipping_address": {
+              "line1": "123 Market St",
+              "line2": "Apt 4B",
+              "city": "San Francisco",
+              "state": "CA",
+              "zip_code": "94103"
+          }
+      }
+  }
+  ```
+
 ---
 
-## 5. Checkout & Customer Orders (Requires Auth)
+## 5. Customer Profile & Orders (Requires Auth)
+
+### Customer Profile
+- **Endpoint:** `GET /api/v1/user/profile`
 
 ### Place Order / Checkout
-Converts the customer's active Cart or explicit item list into a confirmed order.
-* **POST** `/user/orders`
-* **Headers:** `Authorization: Bearer <token>`
-* **Request Body:**
+- **Endpoint:** `POST /api/v1/user/orders`
+- **Request Body:**
   ```json
   {
       "order_type": "delivery",
       "delivery_time_slot": "asap",
       "delivery_time_slot_label": "ASAP (In ~45 min)",
-      "payment_method": "card", // "card", "cash_on_delivery", "apple_pay", "google_pay", "ebt_snap"
-      "shipping_name": "Michael O.",
-      "shipping_phone": "(512) 555-0142",
-      "shipping_address_line1": "221 Maple St, Apt 4B",
-      "shipping_city": "Austin, TX",
-      "shipping_state": "TX",
-      "shipping_zip_code": "78701",
-      "delivery_instructions": "Leave at the door, thank you!",
-      "tip_amount": 0.00
+      "payment_method": "credit_card",
+      "items": [
+          {
+              "product_id": 1,
+              "quantity": 2
+          }
+      ],
+      "shipping_name": "John Doe",
+      "shipping_phone": "+12025550143",
+      "shipping_address_line1": "123 Market St",
+      "shipping_address_line2": "Suite 500",
+      "shipping_city": "San Francisco",
+      "shipping_state": "CA",
+      "shipping_zip_code": "94103",
+      "delivery_instructions": "Leave at front desk",
+      "tip_amount": 5.00
   }
   ```
-* **Response (201 Created):**
+  *(Note: If `items` array is omitted, the user's active Cart items will be used and the cart cleared automatically upon success)*
+- **Response (201 Created):**
   ```json
   {
       "message": "Order placed successfully",
       "data": {
-          "order_number": "US-ORD-20261006-K9F2A1",
-          "subtotal": "17.46",
+          "id": 1,
+          "order_number": "US-ORD-20261007-XK92P1",
+          "subtotal": "7.98",
+          "tax_amount": "0.50",
           "delivery_fee": "2.99",
-          "tax_amount": "1.10",
-          "tip_amount": "0.00",
-          "discount_amount": "0.00",
-          "total_price": "21.55",
-          "order_type": "delivery",
-          "delivery_time_slot": "asap",
+          "tip_amount": "5.00",
+          "total_price": "16.47",
           "order_status": "pending",
           "payment_status": "paid",
-          "payment_method": "credit_card",
           "delivery": {
-              "tracking_number": "TRK-US-778129",
+              "tracking_number": "TRK-US-88219034",
               "delivery_status": "pending",
-              "estimated_delivery_time": "2026-10-06T12:00:00.000000Z"
+              "estimated_delivery_time": "2026-10-07T12:45:00.000000Z"
           }
       }
   }
   ```
 
 ### Customer Order History
-* **GET** `/user/orders`
-* **GET** `/user/orders/{id}`
+- **Endpoint:** `GET /api/v1/user/orders` *(Paginated)*
 
-### Live Delivery Tracking (Customer)
-* **GET** `/user/orders/{id}/track-delivery`
-* **GET** `/tracking/{tracking_number}` (Public tracking without login)
+### Single Order Details
+- **Endpoint:** `GET /api/v1/user/orders/{order_id}`
+
+### Customer Live Delivery Tracking
+- **Endpoint:** `GET /api/v1/user/orders/{order_id}/track-delivery`
 
 ---
 
-## 6. Admin Management APIs (Requires Admin Auth)
+## 6. Admin Management APIs (Requires Admin Role)
 
-### Category & Department Management
-* **POST** `/admin/categories`
-* **PUT** `/admin/categories/{id}`
-* **DELETE** `/admin/categories/{id}`
+All admin routes require `Authorization: Bearer <token>` where the user's role is `admin`.
 
-### Subcategory / Aisle Management
-* **POST** `/admin/subcategories`
-* **PUT** `/admin/subcategories/{id}`
-* **DELETE** `/admin/subcategories/{id}`
+### Dashboard & Users
+- **Dashboard Overview:** `GET /api/v1/admin/dashboard`
+- **User List:** `GET /api/v1/admin/users`
 
-### Product Inventory Management
-* **POST** `/admin/products`
-* **PUT** `/admin/products/{id}`
-* **DELETE** `/admin/products/{id}`
+### Category Management
+- **Create Category:** `POST /api/v1/admin/categories`
+  - Body: `{"name": "Bakery", "description": "Fresh artisan breads", "image": "https://..."}`
+- **Update Category:** `PUT /api/v1/admin/categories/{id}`
+- **Delete Category:** `DELETE /api/v1/admin/categories/{id}`
 
-### Supermarket Orders Dispatch
-* **GET** `/admin/orders` *(Query filters: `?order_status=pending`)*
-* **PATCH** `/admin/orders/{id}/status`
-### Manage Categories
-- **POST** `/admin/categories`
-  - Body (JSON): `{"name": "Fruits", "description": "Fresh fruits", "image": "url"}`
-- **PUT** `/admin/categories/{id}`
-- **DELETE** `/admin/categories/{id}`
+### Subcategory Management
+- **Create Subcategory:** `POST /api/v1/admin/subcategories`
+  - Body: `{"category_id": 1, "name": "Artisan Breads", "description": "Sourdough, baguettes", "image": "https://..."}`
+- **Update Subcategory:** `PUT /api/v1/admin/subcategories/{id}`
+- **Delete Subcategory:** `DELETE /api/v1/admin/subcategories/{id}`
 
-### Manage SubCategories
-- **POST** `/admin/subcategories`
-  - Body (JSON): `{"category_id": 1, "name": "Apples", "slug": "apples-pears", "description": "All apples"}`
-- **PUT** `/admin/subcategories/{id}`
-- **DELETE** `/admin/subcategories/{id}`
-
-### Manage Products
-- **POST** `/admin/products`
-  - Body (JSON): 
+### Product Management
+- **Create Product:** `POST /api/v1/admin/products`
   ```json
   {
-      "category_id": 1, 
-      "sub_category_id": 2, 
-      "name": "Fuji Apples", 
-      "slug": "fuji-apples",
-      "size": "1 kg pack",
-      "short_size": "1 kg",
-      "price": 3.49, 
-      "old_price": 4.30,
-      "save_pct": 20,
-      "stock": 100,
-      "emoji": "🍎",
-      "tint": "peach",
-      "tag": "Fruits",
-      "local": true
+      "subcategory_id": 1,
+      "sku": "US-PROD-201",
+      "name": "Organic Whole Milk",
+      "brand": "Horizon Organic",
+      "unit_size": "1 gallon",
+      "price": 4.99,
+      "old_price": 5.49,
+      "sale_price": 4.49,
+      "cost_price": 3.10,
+      "stock": 40,
+      "low_stock_threshold": 10,
+      "is_organic": true,
+      "is_perishable": true,
+      "status": "active"
   }
   ```
-- **PUT** `/admin/products/{id}`
-- **DELETE** `/admin/products/{id}`
+- **Update Product:** `PUT /api/v1/admin/products/{id}`
+- **Delete Product:** `DELETE /api/v1/admin/products/{id}`
 
-### Live Delivery Courier Dispatch
-* **GET** `/admin/deliveries`
-* **POST** `/admin/deliveries/{id}/assign` *(Assign driver name, phone, and vehicle)*
-* **PATCH** `/admin/deliveries/{id}/status` *(Update status to `assigned`, `picked_up`, `in_transit`, `out_for_delivery`, `delivered`)*
-* **PATCH** `/admin/deliveries/{id}/location` *(Update live latitude & longitude)*
+### Admin Order Management
+- **List All Orders:** `GET /api/v1/admin/orders`
+  - Query filters: `?order_status=pending&payment_status=paid&order_type=delivery&search=US-ORD`
+- **Update Order Status:** `PATCH /api/v1/admin/orders/{id}/status`
+  ```json
+  {
+      "order_status": "processing", // "pending", "confirmed", "processing", "ready_for_pickup", "out_for_delivery", "delivered", "cancelled"
+      "payment_status": "paid"      // "pending", "paid", "failed", "refunded"
+  }
+  ```
+
+### Admin Dispatch & Delivery Management
+- **List Deliveries:** `GET /api/v1/admin/deliveries`
+  - Query filters: `?delivery_status=assigned&search=TRK-US`
+- **Assign Driver & Dispatch:** `POST /api/v1/admin/deliveries/{id}/assign`
+  ```json
+  {
+      "driver_name": "Marcus Vance",
+      "driver_phone": "+14155550199",
+      "vehicle_info": "Silver Toyota Prius (CA 7XYZ89)",
+      "estimated_delivery_time": "2026-10-07 14:30:00"
+  }
+  ```
+- **Update Delivery Status:** `PATCH /api/v1/admin/deliveries/{id}/status`
+  ```json
+  {
+      "delivery_status": "out_for_delivery", // "pending", "assigned", "picked_up", "in_transit", "out_for_delivery", "delivered", "failed", "returned"
+      "delivery_notes": "Handed directly to customer",
+      "proof_of_delivery_image": "https://..."
+  }
+  ```
+- **Update Live GPS Coordinates:** `PATCH /api/v1/admin/deliveries/{id}/location`
+  ```json
+  {
+      "latitude": 37.774929,
+      "longitude": -122.419416
+  }
+  ```
 
 ---
 
-## 7. HTTP Status Codes
-* `200 OK`: Successful retrieval or update.
-* `201 Created`: Order placed or resource created.
-* `400 Bad Request`: Out of stock item or invalid cart action.
-* `401 Unauthorized`: Unauthenticated request on protected route.
-* `403 Forbidden`: Insufficient permissions.
-* `404 Not Found`: Item, order, or cart not found.
-* `422 Unprocessable Entity`: Form validation failed.
+## 7. HTTP Response Codes
+
+| Code | Status | Meaning |
+| :--- | :--- | :--- |
+| `200` | **OK** | Request completed successfully. |
+| `201` | **Created** | Resource (User, Product, Order, Category) created successfully. |
+| `400` | **Bad Request** | Invalid request, empty cart checkout, or insufficient stock. |
+| `401` | **Unauthorized** | Missing or invalid Bearer authentication token. |
+| `403` | **Forbidden** | User lacks required privileges (e.g. non-admin accessing admin route). |
+| `404` | **Not Found** | Resource, order, product, or tracking number not found. |
+| `422` | **Unprocessable Entity** | Validation failed (missing required field, duplicate email/SKU, etc.). |
+| `500` | **Internal Server Error** | Unexpected server error. |

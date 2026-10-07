@@ -141,8 +141,8 @@ class DeliveryController extends Controller
         return response()->json([
             'message' => 'Live coordinates updated successfully',
             'current_location' => [
-                'latitude' => $delivery->current_latitude,
-                'longitude' => $delivery->current_longitude
+                'latitude' => (float)$delivery->current_latitude,
+                'longitude' => (float)$delivery->current_longitude
             ]
         ], 200);
     }

@@ -11,21 +11,6 @@ class CategoryController extends Controller
     public function index()
     {
         return response()->json(Category::with('subcategories')->get(), 200);
-        $categories = Category::all();
-
-        if ($categories->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No categories found',
-                'data' => null
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Categories fetched successfully',
-            'data' => $categories
-        ], 200);
     }
 
     public function store(Request $request)
@@ -61,11 +46,6 @@ class CategoryController extends Controller
     public function show(Category $category)
     {
         return response()->json($category->load('subcategories'), 200);
-        return response()->json([
-            'success' => true,
-            'message' => 'Category fetched successfully',
-            'data' => $category
-        ], 200);
     }
 
     public function update(Request $request, Category $category)
